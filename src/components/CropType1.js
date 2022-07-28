@@ -20,6 +20,11 @@ const Rectangle = (props) => {
     index,
     handleDelete,
     drawMode,
+    setDrawMode,
+    selectMode,
+    setSelectMode,
+    drawRef,
+    selectRef,
     selection,
   } = props;
 
@@ -30,7 +35,6 @@ const Rectangle = (props) => {
     yPos: y,
   });
   const [toolTip, setToolTip] = useState(true);
-  const [selectMode, setSelectMode] = useState(false);
 
   const mouseEnterIcon = (e) => {
     // style stage container:
@@ -64,10 +68,19 @@ const Rectangle = (props) => {
         visible={toolTip}
       />
       <Rect
-        onClick={() => setSelectMode(true)}
+        onMouseDown={() => {
+          console.log('ms dwn happened', selectRef, drawRef);
+          // setSelectMode(true);
+          selectRef.current = true;
+          // if (selectRef.current === true) {
+          // setDrawMode(false);
+          // drawRef.current = false
+          // }
+        }}
         onMouseUp={() => {
-          if (selectMode === true) {
-            console.log('select mode', selectMode);
+          if (selectRef.current === true) {
+            console.log('select mode', selectMode, shapeRef);
+            setDrawMode(false);
             onSelect(shapeRef);
           }
         }} //creates the selection area
@@ -97,7 +110,13 @@ const Rectangle = (props) => {
             yPos: e.target.y(),
           });
           setToolTip(false);
-          setSelectMode(true);
+          // if (selectMode === false) {
+          //   setDrawMode(true);
+          // }
+          if (selectRef.current === true) {
+            drawRef.current = true;
+            selectRef.current = false;
+          }
         }}
         // onMouseEnter={(e) => {
         //   mouseEnterIcon(e);
@@ -169,6 +188,10 @@ export const CropType1 = () => {
   const [drawMode, setDrawMode] = useState(false);
   const [annotations, setAnnotations] = useState([]);
   const [newAnnotation, setNewAnnotation] = useState([]);
+  const [selectMode, setSelectMode] = useState(false);
+
+  const drawRef = useRef(true);
+  const selectRef = useRef(false);
   // const [imageProps, setImageProps] = useState({
   //   width: 0,
   //   height: 0,
@@ -183,6 +206,8 @@ export const CropType1 = () => {
     const clickedOnEmpty = e.target === e.target.getStage();
     if (clickedOnEmpty || e.target.parent.attrs.id === 'UrlImage') {
       selectShape(null);
+      setDrawMode(true);
+      setSelectMode(false);
       trRef.current.nodes([]);
       setNodes([]);
       // layerRef.current.remove(selectionRectangle);
@@ -214,6 +239,13 @@ export const CropType1 = () => {
   //delete box
   const handleDelete = (e) => {
     console.log('delete e triggered', e);
+
+    const container = e.target.getStage().container();
+    container.style.cursor = 'default';
+    selectShape(null);
+    trRef.current.nodes([]);
+    setNodes([]);
+
     const groupId = e.target.parent._id;
     e.target.parent.destroy();
     let annoIndex = annotations.findIndex(
@@ -226,24 +258,25 @@ export const CropType1 = () => {
 
   const oldPos = useRef(null);
   const onMouseDown = (e) => {
-    if (!drawMode) {
-      // const isElement = e.target.findAncestor('.elements-container');
-      // const isTransformer = e.target.findAncestor('Transformer');
-      // if (isElement || isTransformer) {
-      //   return;
-      // }
-      // const pos = e.target.getStage().getPointerPosition();
-      // selection.current.visible = false;
-      // console.log('sel current', selection.current);
-      // selection.current.x1 = pos.x;
-      // selection.current.y1 = pos.y;
-      // selection.current.x2 = pos.x;
-      // selection.current.y2 = pos.y;
-      // updateSelectionRect();
-    } else if (drawMode && e.target.attrs.id !== 'removeImg') {
+    // if (!drawMode) {
+    const isElement = e.target.findAncestor('.elements-container');
+    const isTransformer = e.target.findAncestor('Transformer');
+    if (isElement || isTransformer) {
+      return;
+    }
+    const pos = e.target.getStage().getPointerPosition();
+    selection.current.visible = false;
+    console.log('sel current', selection.current);
+    selection.current.x1 = pos.x;
+    selection.current.y1 = pos.y;
+    selection.current.x2 = pos.x;
+    selection.current.y2 = pos.y;
+    updateSelectionRect();
+    // } else
+    if (drawMode && e.target.attrs.id !== 'removeImg') {
       if (newAnnotation.length === 0) {
         const { x, y } = e.target.getStage().getPointerPosition();
-        // setNewAnnotation([{ x, y, width: 0, height: 0, id: '0' }]);
+        setNewAnnotation([{ x, y, width: 0, height: 0, id: '0' }]);
       }
     }
   };
@@ -263,7 +296,6 @@ export const CropType1 = () => {
         const sy = newAnnotation[0].y;
         const { x, y } = e.target.getStage().getPointerPosition();
         if (x - sx <= 2 && y - sy <= 2) {
-          console.log('ms moved');
           return;
         }
         setNewAnnotation([
@@ -301,14 +333,13 @@ export const CropType1 = () => {
       updateSelectionRect();
     } else if (drawMode) {
       if (newAnnotation.length === 1) {
-        console.log('mouse up', e);
         const sx = newAnnotation[0].x;
         const sy = newAnnotation[0].y;
         const { x, y } = e.target.getStage().getPointerPosition();
-        // if (x - sx <= 2 && y - sy <= 2) {
-        //   console.log('ms up');
-        //   return;
-        // }
+        if (x - sx <= 2 && y - sy <= 2) {
+          setNewAnnotation([]);
+          return;
+        }
         const annotationToAdd = {
           x: x - sx < 0 ? x : sx,
           y: y - sy < 0 ? y : sy,
@@ -352,7 +383,6 @@ export const CropType1 = () => {
       if (!metaPressed && !isSelected) {
         // if no key pressed and the node is not selected
         // select just one
-        console.log('was here');
         tr.nodes([e.target]);
       } else if (metaPressed && isSelected) {
         // if we pressed keys and node was selected
@@ -384,14 +414,16 @@ export const CropType1 = () => {
         height={1200}
         onMouseDown={(e) => {
           onMouseDown(e);
-          console.log('ms dwn event');
         }}
         onMouseMove={onMouseMove}
-        onMouseUp={onMouseUp}
+        onMouseUp={(e) => {
+          onMouseUp(e);
+          console.log('registered from stage');
+        }}
         // onTouchStart={checkDeselect}
         onClick={(e) => {
+          console.log('registered click tap');
           onClickTap(e);
-          console.log('ms click event');
         }}
       >
         <Layer id='UrlImage' onClick={checkDeselect}>
@@ -407,6 +439,10 @@ export const CropType1 = () => {
                 isSelected={rect.id === selectedId}
                 getLength={annotations.length}
                 selection={selection}
+                selectMode={selectMode}
+                setSelectMode={setSelectMode}
+                drawRef={drawRef}
+                selectRef={selectRef}
                 onSelect={(e) => {
                   if (e.current !== undefined) {
                     let temp = nodesArray;
@@ -414,7 +450,7 @@ export const CropType1 = () => {
                     console.log('nodes set', temp);
                     setNodes(temp);
                     trRef.current.nodes(nodesArray);
-                    // trRef.current.nodes(nodesArray);
+                    trRef.current.nodes(nodesArray);
                     trRef.current.getLayer().batchDraw();
                   }
                   selectShape(rect.id);
@@ -428,6 +464,7 @@ export const CropType1 = () => {
                 index={i}
                 handleDelete={handleDelete}
                 drawMode={drawMode}
+                setDrawMode={setDrawMode}
               />
             );
           })}
