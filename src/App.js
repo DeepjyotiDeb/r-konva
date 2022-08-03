@@ -3,6 +3,7 @@ import './App.css';
 import CropHome from './components/CropHome';
 import { CropSelect } from './components/CropSelect';
 import { CropType1 } from './components/CropType1';
+import { DragOnly } from './components/OriginalDrag/DragOnly';
 
 function App() {
   return (
@@ -15,7 +16,7 @@ function App() {
           }}
         >
           <Link to='/' element={<CropHome />}>
-            CropHome
+            DrawOnly
           </Link>{' '}
           |{' '}
           <Link to='/crop-select' element={<CropSelect />}>
@@ -24,6 +25,10 @@ function App() {
           |{' '}
           <Link to='/crop-type1' element={<CropType1 />}>
             CropType1
+          </Link>{' '}
+          |{' '}
+          <Link to='/drag-only' element={<DragOnly />}>
+            DragOnly
           </Link>
         </nav>
         <Routes>
@@ -31,6 +36,7 @@ function App() {
           <Route path='/' element={<CropHome />} />
           <Route path='crop-select' element={<CropSelect />} />
           <Route path='crop-type1' element={<CropType1 />} />
+          <Route path='drag-only' element={<DragOnly />} />
         </Routes>
       </BrowserRouter>
     </div>
