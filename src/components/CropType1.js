@@ -22,10 +22,8 @@ const Rectangle = (props) => {
     drawMode,
     setDrawMode,
     selectMode,
-    setSelectMode,
     drawRef,
     selectRef,
-    selection,
   } = props;
 
   const shapeRef = useRef();
@@ -72,15 +70,19 @@ const Rectangle = (props) => {
           console.log('ms dwn happened', selectRef, drawRef);
           // setSelectMode(true);
           selectRef.current = true;
+          if (drawMode) {
+            onSelect(shapeRef);
+          }
           // if (selectRef.current === true) {
           // setDrawMode(false);
           // drawRef.current = false
           // }
         }}
         onMouseUp={() => {
+          console.log('mouse up happened', selectMode, shapeRef);
           if (selectRef.current === true) {
-            console.log('select mode', selectMode, shapeRef);
-            setDrawMode(false);
+            console.log('mouse up from rectangle', selectMode, shapeRef);
+            // setDrawMode(false);
             onSelect(shapeRef);
           }
         }} //creates the selection area
