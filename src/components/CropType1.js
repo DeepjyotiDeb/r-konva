@@ -1,24 +1,97 @@
 import React, { useRef, useState } from 'react';
-import { Stage, Layer, Rect, Transformer, Group } from 'react-konva';
-const Rectangle = ({ shapeProps, onSelect, onChange, draw }) => {
+import {
+  Stage,
+  Layer,
+  Rect,
+  Transformer,
+  Group,
+  Image,
+  Text,
+} from 'react-konva';
+import useImage from 'use-image';
+import removeIcon from './remove.svg';
+
+const Rectangle = ({
+  shapeProps,
+  onSelect,
+  onChange,
+  draw,
+  setDraw,
+  handleDelete,
+  index,
+}) => {
   const shapeRef = useRef();
   const { x, y, width, height } = shapeProps;
+  // console.log({ x, y });
+  const [toolVisible, setToolVisible] = useState(true);
+  const [coords, setCoords] = useState({
+    xPos: x,
+    yPos: y,
+  });
+  const mouseEnterIcon = (e) => {
+    // style stage container:
+    //  if (!drawMode) {
+    const container = e.target.getStage().container();
+    container.style.cursor = 'pointer';
+    //  }
+  };
+  const mouseLeaveIcon = (e) => {
+    //  if (!drawMode) {
+    const container = e.target.getStage().container();
+    container.style.cursor = 'default';
+    //  }
+  };
   return (
-    <Group visible={(width || height) < 2 ? false : true}>
+    <Group visible={(Math.abs(width) || Math.abs(height)) < 2 ? false : true}>
+      <Text
+        text={index === 0 ? 'Q' : 'A'}
+        fontSize={15}
+        x={coords.xPos + width / 2 - 10}
+        y={coords.yPos + height / 2 - 10}
+        // align='center'
+        visible={toolVisible}
+      />
+      <RemoveImg
+        x={coords.xPos + width}
+        y={coords.yPos - 12}
+        onClick={handleDelete}
+        mouseEnterIcon={mouseEnterIcon}
+        mouseLeaveIcon={mouseLeaveIcon}
+        draw={draw}
+        setDraw={setDraw}
+        visible={toolVisible}
+      />
       <Rect
-        onClick={() => onSelect(shapeRef)}
+        onClick={(e) => {
+          onSelect(shapeRef);
+          console.log('e of rect', e);
+        }}
         onTap={() => onSelect(shapeRef)}
         ref={shapeRef}
         {...shapeProps}
         name='rectangle'
         stroke='black'
         draggable={draw === true ? false : true}
+        onDragMove={(e) => {
+          setCoords((prevState) => ({
+            ...prevState,
+            xPos: e.target.x(),
+            yPos: e.target.y(),
+          }));
+          setToolVisible(false);
+        }}
         onDragEnd={(e) => {
           onChange({
             ...shapeProps,
             x: e.target.x(),
             y: e.target.y(),
           });
+          setCoords((prevState) => ({
+            ...prevState,
+            xPos: e.target.x(),
+            yPos: e.target.y(),
+          }));
+          setToolVisible(true);
         }}
         onTransformEnd={(e) => {
           // transformer is changing scale of the node
@@ -55,12 +128,33 @@ export const CropType1 = () => {
 
   const [annotations, setAnnotations] = useState([]);
   const [newAnnotation, setNewAnnotation] = useState([]);
+  const [annos, setAnnos] = useState([]);
   const [draw, setDraw] = useState(true);
+
+  const handleDelete = (e) => {
+    console.log('delete e triggered', e.target.parent._id);
+    const groupId = e.target.parent._id;
+
+    let annoIndex = annotations.findIndex(
+      (item) => item.id === groupId.toString()
+    );
+    const container = e.target.getStage().container();
+    container.style.cursor = 'default';
+    e.target.parent.destroy(); //canvas remove
+    // let newAnnot = annotations.filter((ann) => ann.id !== groupId.toString());
+    console.log('ann', annoIndex, groupId);
+    // setAnnotations(newAnnot);
+    // annotations.splice(annoIndex, 1);
+    // setAnnotations(annotations);
+    annos.splice(annoIndex, 1);
+    setAnnos(annos);
+  };
 
   const checkDeselect = (e) => {
     // deselect when clicked on empty area
     const clickedOnEmpty = e.target === e.target.getStage();
-    if (clickedOnEmpty) {
+    const clickedOnImage = e.currentTarget.attrs.id;
+    if (clickedOnEmpty || clickedOnImage === 'UrlImage') {
       selectShape(null);
       trRef.current.nodes([]);
       setNodes([]);
@@ -170,21 +264,29 @@ export const CropType1 = () => {
         const sx = newAnnotation[0].x;
         const sy = newAnnotation[0].y;
         const { x, y } = e.target.getStage().getPointerPosition();
-        // if (Math.abs(x - sx) < 2 || Math.abs(y - sy) < 2) {
-        //   console.log('inhere');
-        //   setNewAnnotation([]);
-        //   return;
-        // }
+        if (Math.abs(x - sx) < 2 || Math.abs(y - sy) < 2) {
+          // console.log('inhere');
+          setNewAnnotation([]);
+          return;
+        }
         const annotationToAdd = {
           x: x - sx < 0 ? x : sx,
           y: y - sy < 0 ? y : sy,
           width: Math.abs(x - sx),
           height: Math.abs(y - sy),
-          id: `${annotations.length + 1}`,
+          // x: sx,
+          // y: sy,
+          // width: x - sx,
+          // height: y - sy,
+          // id: `${annotations.length + 1}`,
+          id: `${e.target.parent._id}`,
         };
         annotations.push(annotationToAdd);
         setNewAnnotation([]);
         setAnnotations(annotations);
+
+        annos.push(annotationToAdd);
+        setAnnos(annos);
       }
     }
   };
@@ -241,7 +343,7 @@ export const CropType1 = () => {
       >
         toggle draw{`${draw}`}
       </button>
-      <button onClick={() => console.log([annotations])}>anno</button>
+      <button onClick={() => console.log({ annotations, annos })}>anno</button>
       <Stage
         width={window.innerWidth + 400}
         height={window.innerHeight + 400}
@@ -249,16 +351,19 @@ export const CropType1 = () => {
         onMouseUp={onMouseUp}
         onMouseMove={onMouseMove}
         onTouchStart={checkDeselect}
-        // onClick={onClickTap}
+        onClick={checkDeselect}
       >
         <Layer ref={layerRef}>
           {annotationsToDraw.map((rect, i) => {
             return (
               <Rectangle
                 key={i}
+                index={i}
+                handleDelete={handleDelete}
                 getKey={i}
                 shapeProps={rect}
                 draw={draw}
+                setDraw={setDraw}
                 isSelected={rect.id === selectedId}
                 getLength={annotations.length}
                 onSelect={(e) => {
@@ -267,7 +372,7 @@ export const CropType1 = () => {
                     if (!nodesArray.includes(e.current)) temp.push(e.current);
                     setNodes(temp);
                     trRef.current.nodes(nodesArray);
-                    trRef.current.nodes(nodesArray);
+                    // trRef.current.nodes(nodesArray);
                     trRef.current.getLayer().batchDraw();
                   }
                   selectShape(rect.id);
@@ -297,5 +402,32 @@ export const CropType1 = () => {
         </Layer>
       </Stage>
     </div>
+  );
+};
+
+const RemoveImg = ({ x, y, onClick, draw, setDraw, visible }) => {
+  const [removeImage] = useImage(removeIcon);
+  return (
+    <Image
+      id='removeImg'
+      image={removeImage}
+      width={18}
+      height={18}
+      x={x}
+      y={y}
+      onClick={onClick}
+      visible={visible}
+      onMouseEnter={(e) => {
+        // style stage container:
+        const container = e.target.getStage().container();
+        container.style.cursor = 'pointer';
+        // setDraw(false);
+      }}
+      onMouseLeave={(e) => {
+        const container = e.target.getStage().container();
+        container.style.cursor = 'default';
+        // setDraw(true);
+      }}
+    />
   );
 };
