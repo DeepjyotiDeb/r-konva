@@ -10,6 +10,8 @@ import {
 } from 'react-konva';
 import useImage from 'use-image';
 import removeIcon from './remove.svg';
+import sample from './sample.jpeg';
+import UrlImageViewer from './TestToolv1/UrlImageViewer';
 
 const Rectangle = ({
   shapeProps,
@@ -17,12 +19,14 @@ const Rectangle = ({
   onChange,
   draw,
   setDraw,
+  isShift,
   handleDelete,
   index,
 }) => {
   const shapeRef = useRef();
-  const { x, y, width, height } = shapeProps;
-  // console.log({ x, y });
+  const { x, y, width, height, label } = shapeProps;
+
+  // console.log({ x, y, label });
   const [toolVisible, setToolVisible] = useState(true);
   const [coords, setCoords] = useState({
     xPos: x,
@@ -44,7 +48,8 @@ const Rectangle = ({
   return (
     <Group visible={(Math.abs(width) || Math.abs(height)) < 2 ? false : true}>
       <Text
-        text={index === 0 ? 'Q' : 'A'}
+        // text={index === 0 ? 'Q' : 'A'}
+        text={label}
         fontSize={15}
         x={coords.xPos + width / 2 - 10}
         y={coords.yPos + height / 2 - 10}
@@ -71,7 +76,8 @@ const Rectangle = ({
         {...shapeProps}
         name='rectangle'
         stroke='black'
-        draggable={draw === true ? false : true}
+        // draggable={draw === true ? false : true}
+        draggable={isShift === true ? true : false}
         onDragMove={(e) => {
           setCoords((prevState) => ({
             ...prevState,
@@ -131,33 +137,51 @@ export const CropType1 = () => {
   const [annos, setAnnos] = useState([]);
   const [draw, setDraw] = useState(true);
 
+  const [isShift, setIsShift] = useState(false);
+
   const handleDelete = (e) => {
-    console.log('delete e triggered', e.target.parent._id);
     const groupId = e.target.parent._id;
 
-    let annoIndex = annotations.findIndex(
+    let annosIndex = annos.findIndex((item) => item.id === groupId.toString());
+    let annotationIndex = annotations.findIndex(
       (item) => item.id === groupId.toString()
     );
     const container = e.target.getStage().container();
     container.style.cursor = 'default';
     e.target.parent.destroy(); //canvas remove
     // let newAnnot = annotations.filter((ann) => ann.id !== groupId.toString());
-    console.log('ann', annoIndex, groupId);
     // setAnnotations(newAnnot);
     // annotations.splice(annoIndex, 1);
     // setAnnotations(annotations);
-    annos.splice(annoIndex, 1);
+    annos.splice(annosIndex, 1);
     setAnnos(annos);
+
+    annotations[annotationIndex].label = '0';
+    // setAnnotations(annotations);
+    console.log('annota', annotations);
+    let coordlabel = 0;
+    annotations.forEach((coord) => {
+      if (coord.label !== 'Q' || coord.label !== '0') {
+        console.log('coord label', coord.label);
+        coord.label = `A${(coordlabel += 1)}`;
+      }
+    });
+    setAnnotations(annotations);
   };
 
   const checkDeselect = (e) => {
     // deselect when clicked on empty area
     const clickedOnEmpty = e.target === e.target.getStage();
-    const clickedOnImage = e.currentTarget.attrs.id;
-    if (clickedOnEmpty || clickedOnImage === 'UrlImage') {
+    const clickedOnImage = e.target.parent.attrs.id;
+    console.log('triggered out', e);
+    if (
+      e.evt.shiftKey === true &&
+      (clickedOnEmpty || clickedOnImage === 'UrlImage')
+    ) {
       selectShape(null);
       trRef.current.nodes([]);
       setNodes([]);
+      console.log('triggered');
       // layerRef.current.remove(selectionRectangle);
     }
   };
@@ -186,7 +210,9 @@ export const CropType1 = () => {
 
   const oldPos = useRef(null);
   const onMouseDown = (e) => {
-    if (draw === false) {
+    // if (draw === false) {
+    if (e.evt.shiftKey === true) {
+      setIsShift(true);
       const isElement = e.target.findAncestor('.elements-container');
       const isTransformer = e.target.findAncestor('Transformer');
       if (isElement || isTransformer) {
@@ -201,7 +227,10 @@ export const CropType1 = () => {
       selection.current.y2 = pos.y;
       updateSelectionRect();
     }
-    if (draw) {
+    // if (draw) {
+    if (e.evt.shiftKey === false) {
+      setIsShift(false);
+      console.log('evt', e.evt.shiftKey);
       if (newAnnotation.length === 0) {
         const { x, y } = e.target.getStage().getPointerPosition();
         setNewAnnotation([{ x, y, width: 0, height: 0, id: '0' }]);
@@ -210,7 +239,9 @@ export const CropType1 = () => {
   };
 
   const onMouseMove = (e) => {
-    if (draw === false) {
+    // if (draw === false) {
+    if (e.evt.shiftKey === true) {
+      setIsShift(true);
       if (!selection.current.visible) {
         return;
       }
@@ -219,7 +250,9 @@ export const CropType1 = () => {
       selection.current.y2 = pos.y;
       updateSelectionRect();
     }
-    if (draw) {
+    // if (draw) {
+    if (e.evt.shiftKey === false) {
+      setIsShift(false);
       if (newAnnotation.length === 1) {
         const sx = newAnnotation[0].x;
         const sy = newAnnotation[0].y;
@@ -239,7 +272,9 @@ export const CropType1 = () => {
   };
 
   const onMouseUp = (e) => {
-    if (draw === false) {
+    // if (draw === false) {
+    if (e.evt.shiftKey === true) {
+      setIsShift(true);
       oldPos.current = null;
       if (!selection.current.visible) {
         return;
@@ -259,7 +294,9 @@ export const CropType1 = () => {
       Konva.listenClickTap = false;
       updateSelectionRect();
     }
-    if (draw) {
+    // if (draw) {
+    if (e.evt.shiftKey === false) {
+      setIsShift(false);
       if (newAnnotation.length === 1) {
         const sx = newAnnotation[0].x;
         const sy = newAnnotation[0].y;
@@ -280,6 +317,7 @@ export const CropType1 = () => {
           // height: y - sy,
           // id: `${annotations.length + 1}`,
           id: `${e.target.parent._id}`,
+          label: annotations.length < 1 ? 'Q' : `A${annotations.length}`,
         };
         annotations.push(annotationToAdd);
         setNewAnnotation([]);
@@ -350,9 +388,12 @@ export const CropType1 = () => {
         onMouseDown={onMouseDown}
         onMouseUp={onMouseUp}
         onMouseMove={onMouseMove}
-        onTouchStart={checkDeselect}
+        // onTouchStart={checkDeselect}
         onClick={checkDeselect}
       >
+        <Layer id='UrlImage'>
+          <UrlImageViewer urlImage={sample} />
+        </Layer>
         <Layer ref={layerRef}>
           {annotationsToDraw.map((rect, i) => {
             return (
@@ -362,12 +403,14 @@ export const CropType1 = () => {
                 handleDelete={handleDelete}
                 getKey={i}
                 shapeProps={rect}
+                isShift={isShift}
                 draw={draw}
                 setDraw={setDraw}
                 isSelected={rect.id === selectedId}
                 getLength={annotations.length}
                 onSelect={(e) => {
                   if (e.current !== undefined) {
+                    console.log('nodes selected');
                     let temp = nodesArray;
                     if (!nodesArray.includes(e.current)) temp.push(e.current);
                     setNodes(temp);

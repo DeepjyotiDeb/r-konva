@@ -495,6 +495,7 @@ export const CropSelect = () => {
                   getLength={annotations.length}
                   onSelect={(e) => {
                     if (e.current !== undefined) {
+                      console.log('e', { e });
                       let temp = nodesArray;
                       if (!nodesArray.includes(e.current)) temp.push(e.current);
                       setNodes(temp);
